@@ -2,12 +2,6 @@
 
 set -e
 
-[[ "$1" == "init" ]] && InitOvsNet
-[[ "$1" == "create" ]] && CreateContainerNetwork
-[[ "$1" == "delete" ]] && DeleteContainerNetwork
-[[ "$1" == "attache" ]] && AttacheContainerNetwork
-[[ "$1" == "detache" ]] && DetachContainerNetwork
- 
 container_host_nic=em1
 run_log=./docker-ovs.log
 statefile=/var/lib/docker-ovs
@@ -186,7 +180,7 @@ function __CheckIPAddr()
     return 0
 }
 
-function AttacheContainerNetwork(){
+function __AttacheContainerNetwork(){
     # Add Container's nic into the NameSpace. Configure Cidr to the nic
     #-------------------------
     #-----  $1   containser id
@@ -213,7 +207,7 @@ function AttacheContainerNetwork(){
     ln -s /proc/$2/ns/net $namespace_dir/$1
     ip link set $3 netns $1
     ip netns exec $1 ip link set $3 up
-    ip netns exec $1 ip addr add $_container_net dev $4
+    ip netns exec $1 ip addr add $_container_net dev $3
     ip netns exec $1 ip route add default via $_container_gateway dev $3
     ip netns exec $1 ping -c 2 $_container_gateway > /dev/null 2>&1
     [[ $? -ne 0 ]] && echo "Warnning: Gateway faraway!"
@@ -223,7 +217,8 @@ function AttacheContainerNetwork(){
 	fi
 }
 
-function DetachContainerNetwork(){
+function __DetachContainerNetwork(){
+
     # Detache container nic
     #-------------------------
     #-----  $1   containser id
@@ -267,7 +262,7 @@ function InitOvsNet(){
     exit 0
 }
 
-function CreateContainerNetwork(){
+function CreateNetwork(){
     # Create peer virtual nic and container's bridge.
     # build container net topology,and config boardcast qos by openvswitch
     #-------------------------
@@ -278,7 +273,7 @@ function CreateContainerNetwork(){
     #container_bridge=qbr-$short_id
     container_pid=`docker inspect -f '{{ .State.Pid }}' $1`
     
-    ovs-vsctl list_br | grep $container_bridge > /dev/null
+    ovs-vsctl list-br | grep $container_bridge > /dev/null
     [[ $? -eq 0 ]] && \
 		echo "Faild: Bridge $container_bridge exsit!" && \
 		exit 1
@@ -294,11 +289,11 @@ function CreateContainerNetwork(){
     ip link set qvr-$short_id up
     ip link set tap-$short_id up
     __FlowsTableQosBoardCast qbr-$short_id tap-$short_id qvr-$short_id
-    AttacheContainerNetwork $1 $container_pid veth-$short_id $2
+    __AttacheContainerNetwork $1 $container_pid veth-$short_id $2
 	__AddState $short_id $container_net $container_gateway `__GetOvsQosUuid qos tap-$short_id` `__GetOvsQosUuid q0 tap-$short_id` `__GetOvsQosUuid q1 tap-$short_id` "ACTIVE"
 }
 
-function DeleteContainerNetwork(){
+function DeleteNetwork(){
     # Delete Container Network
     #-------------------------
     #-----  $1   container_id
@@ -313,3 +308,66 @@ function DeleteContainerNetwork(){
 	[[ $? -eq 0 ]] && echo "Faild: Delete Bridge $container_bridge faild!" && exit 1
 	__DeleteState $short_id
 }
+
+function AttacheNic(){
+    #-------------------------
+    #-----  $1   container_id
+    #-------------------------
+    container_pid=`docker inspect -f '{{ .State.Pid }}' $1`
+    
+    ovs-vsctl list-br | grep $container_bridge > /dev/null
+    [[ $? -ne 0 ]] && \
+		echo "Faild: Bridge $container_bridge not exsit!" && \
+		exit 1
+    ovs-vsctl list-port $container_bridge | grep tap-$short_id > /dev/null
+    [[ $? -eq 0 ]] && \
+		echo "Warnning: Port tap-$short_id exsit!" && \
+
+    ln -s /proc/${container_pid}/ns/net $namespace_dir/$1
+	ip link del dev tap-$short_id  > /dev/null 2>&1
+	ip netns exec $1 ip link del dev veth1-$short_id  > /dev/null 2>&1
+	ip link add tap-$short_id type veth peer name veth-$short_id
+	ovs-vsctl add-port qbr-$short_id tap-$short_id
+	__AttacheContainerNetwork $1 $container_pid veth-$short_id $2
+}
+
+function DetacheNic(){
+    #-------------------------
+    #-----  $1   container_id
+    #-------------------------
+    ovs-vsctl list-br | grep $container_bridge > /dev/null
+    [[ $? -ne 0 ]] && \
+		echo "Faild: Bridge $container_bridge not exsit!" && \
+		exit 1
+    ovs-vsctl list-port $container_bridge | grep tap-$short_id > /dev/null
+    [[ $? -ne 0 ]] && \
+		echo "Warnning: Port tap-$short_id not exsit!" && \
+		exit 1
+	__DetachContainerNetwork $short_id
+
+}
+
+[[ ! -n $1 ]] && \
+	echo "Faild: not availble action!" && \
+	__Usage && \
+	exit 1 
+
+case "$1" in
+	init)
+		InitOvsNet $integration_bridge $docker_bridge
+		;;
+	create)
+		CreateNetwork $2 $3
+		;;
+	delete)
+		DeleteNetwork $2
+		;;
+	attache)
+		AttacheNic $2 $3
+		;;
+	detache)
+		DetacheNic $2
+		;;
+	*)
+		__Usage
+esac
