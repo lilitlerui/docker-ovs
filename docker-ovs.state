@@ -1,2 +1,1 @@
 ID                      IP/MASK                 GATEWAY                 QOS_UUID                                    QUEUE0_UUID                                 QUEUE1_UUID                                 NIC_STATE               CREATE_AT           
-cba070b53ac0b916f5      10.1.1.5/24             10.1.1.254              2bb6070e-5ef4-41e8-9b0b-db96a7aced5d        85ba4860-68f1-4f37-bc03-c70d19cd8e25        3f9cd218-c76e-42d1-96b3-c2f9b3f8237f        attache                 2016-06-26-14:45:44 

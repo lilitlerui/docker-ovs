@@ -73,7 +73,7 @@ function __AddState(){
 
 function __DeleteState(){
     __Checkfile
-    sed -i "/$1/d" $statefile
+    sed -i "/^${1}.*/d" $statefile
 }
 
 function __GetState(){
@@ -225,8 +225,8 @@ function __AttacheContainerNetwork(){
     ip netns exec $1 ip link set $3 up
     ip netns exec $1 ip addr add $_container_net dev $3
     ip netns exec $1 ip route add default via $_container_gateway dev $3
-    ip netns exec $1 ping -c 2 $_container_gateway > /dev/null 2>&1
-    [[ $? -ne 0 ]] && echo "Warnning: Gateway faraway!"
+    #ip netns exec $1 ping -c 2 $_container_gateway > /dev/null 2>&1
+    #[[ $? -ne 0 ]] && echo "Warnning: Gateway faraway!"
     rm -f $namespace_dir/$1
     if [[ $tag -eq 0 ]];then
         __ChangeState $short_id attache
@@ -311,8 +311,8 @@ function DeleteNetwork(){
     #-------------------------
     #-----  $1   container_id
     #-------------------------
-    DetachContainerNetwork $short_id
-    ovs-vsctl del-port $container_bridge qvb-$short_id
+    __DetacheContainerNetwork $short_id
+    ovs-vsctl del-port $integration_bridge qvb-$short_id
     ovs-vsctl del-port $container_bridge qvr-$short_id
     ovs-vsctl del-br $container_bridge
     ip link del qvb-$short_id > /dev/null 2>&1
@@ -344,6 +344,7 @@ function AttacheNic(){
     ip netns exec $1 ip link del dev veth1-$short_id  > /dev/null 2>&1
     ip link add tap-$short_id type veth peer name veth-$short_id
     ovs-vsctl add-port qbr-$short_id tap-$short_id
+    ip link set tap-$short_id up
     __FlowsTableQosBoardCast qbr-$short_id tap-$short_id qvr-$short_id
     __AttacheContainerNetwork $short_id $container_pid veth-$short_id $2
 }
