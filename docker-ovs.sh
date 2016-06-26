@@ -105,14 +105,16 @@ function __ChangeState(){
     __Checkfile
     __CheckContainer $1
     cat $statefile | grep $1 > /tmp/$1.state
-    sed -i "/$1/d" $statefile
+    __container_net=`cat /tmp/$1.state |awk '{print $2}'`
+    __container_gateway=`cat /tmp/$1.state |awk '{print $3}'`
+    sed -i "/^${1}.*/d" $statefile
     [[ $2 == 'attache' ]] && \
-        __AddState ${container_id:0:18} $container_net $container_gateway `__GetOvsQosUuid qos qvr-$short_id` `__GetOvsQosUuid q0 qvr-$short_id` `__GetOvsQosUuid q1 qvr-$short_id` "attache"
+        __AddState ${container_id:0:18} $__container_net $__container_gateway `__GetOvsQosUuid qos qvr-$short_id` `__GetOvsQosUuid q0 qvr-$short_id` `__GetOvsQosUuid q1 qvr-$short_id` "attache"
         #sed -i 's/detache/attache/g' /tmp/$1.state
     [[ $2 == 'detache' ]] && \
-        __AddState ${container_id:0:18} $container_net $container_gateway null null null "detache"
+        __AddState ${container_id:0:18} $__container_net $__container_gateway null null null "detache"
         #sed -i 's/attache/detache/g' /tmp/$1.state
-    cat /tmp/$1.state >> $statefile
+    rm -rf /tmp/$1.state >> $statefile
 }
 
 function __GetOvsQosUuid(){
