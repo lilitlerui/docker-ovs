@@ -311,7 +311,9 @@ function DeleteNetwork(){
     #-------------------------
     #-----  $1   container_id
     #-------------------------
-    __DetacheContainerNetwork $short_id
+    state=`__GetState $1 state`
+    [[ $state == 'attache' ]] && \
+        __DetacheContainerNetwork $short_id
     ovs-vsctl del-port $integration_bridge qvb-$short_id
     ovs-vsctl del-port $container_bridge qvr-$short_id
     ovs-vsctl del-br $container_bridge
