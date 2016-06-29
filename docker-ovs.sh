@@ -139,8 +139,8 @@ function __FlowsTableQosBoardCast(){
     #-----  $2  in port (tap veth)
     #-----  $3  out port (qvr veth)
     #-------------------------
-    inport=`ovs-ofctl show $1 | grep $2 | awk '{print substr($1,0,1)}'`
-    outport=`ovs-ofctl show $1 |grep $3 | awk '{print substr($1,0,1)}'`
+    inport=`ovs-ofctl show $1 | grep $2 | awk '{print substr($1,1,1)}'`
+    outport=`ovs-ofctl show $1 |grep $3 | awk '{print substr($1,1,1)}'`
 
     ovs-vsctl set port $3 qos=@newqos -- --id=@newqos create qos type=linux-htb other-config:max-rate=1000000000 queues=0=@q0,1=@q1 -- --id=@q0 create queue other-config:min-rate=500000000 other-config:max-rate=1000000000 -- --id=@q1 create queue other-config:min-rate=1000000 other-config:max-rate=1000000  > /dev/null 2>&1
     [[ $? -ne 0 ]] && \
@@ -160,7 +160,7 @@ function __CleanFlows(){
     #-----  $1  container_bridge
     #-----  $2  in port (qvr veth)
     #-------------------------
-    inport=`ovs-ofctl show $1 | grep $2 | awk '{print substr($1,0,1)}'`
+    inport=`ovs-ofctl show $1 | grep $2 | awk '{print substr($1,1,1)}'`
     qos_uuid=`__GetOvsQosUuid qos $2`
     queue0=`__GetOvsQosUuid q0 $2`
     queue1=`__GetOvsQosUuid q1 $2`
